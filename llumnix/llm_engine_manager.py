@@ -180,7 +180,7 @@ class LLMEngineManager:
                 dead_instance_ids.append(instance_id)
         while True:
             try:
-                # await asyncio.sleep(interval)
+                await asyncio.sleep(interval)
                 tasks = []
                 instance_infos = []
                 dead_instance_ids = []
