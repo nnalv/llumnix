@@ -167,7 +167,8 @@ class Llumlet:
             if status == MigrationStatus.FINISHED:
                 await migrate_in_ray_actor.execute_engine_method.remote("commit_dst_request", migrate_out_request)
                 self.backend_engine.free_src_request(migrate_out_request)
-                self.backend_engine.remove_migrating_out_request_last_stage(migrate_out_request)
+                # TODO: for block-wise migration temporarily
+                # self.backend_engine.remove_migrating_out_request_last_stage(migrate_out_request)
                 migrated_request.append(migrate_out_request.request_id)
             elif status == MigrationStatus.RUNNING: # @LN: for layer-wise migration
                 logger.info("{}->{} running migrate out，migrating requests:{}, migrated blocks:{}".format(self.instance_id, dst_instance_id, migrate_out_request.request_id, sum(migrate_out_request.stage_num_blocks_list)))
