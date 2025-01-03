@@ -161,8 +161,10 @@ class LlumnixRayGPUExecutor(RayGPUExecutorAsync):
 
     async def execute_model_async(self, *args, **kwargs):
         t0 = time.time()
+        logger.info(f"[execute model] begin reqs:{[(r.request_id, r.is_prompt) for r in args[0].seq_group_metadata_list]}, time:{t0}")
         outputs = await super().execute_model_async(*args, **kwargs)
         t1 = time.time()
+        logger.info(f"[execute model] finish reqs:{[(r.request_id, r.is_prompt) for r in args[0].seq_group_metadata_list]}, time:{t1}")
         self.last_inference_latency = (t1 - t0) * 1000
         return outputs
 

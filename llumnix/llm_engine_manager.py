@@ -195,9 +195,10 @@ class LLMEngineManager:
                     self.scale_down(dead_instance_ids)
                 self.num_instance_info_updates += 1
                 # Push migrate when the instance_info have updated a certain number of times.
-                if self.enable_migration and self.num_instance_info_updates != 0 \
-                    and self.num_instance_info_updates % self.pair_migration_frequency == 0:
+                if self.enable_migration and self.num_instance_info_updates != 0: 
+                    #and self.num_instance_info_updates % self.pair_migration_frequency == 0:
                     asyncio.create_task(self._push_migrations())
+                    #await self._push_migrations()
                 if self.log_instance_info:
                     self._log_instance_infos_to_csv(instance_infos)
             # pylint: disable=W0703
@@ -214,8 +215,10 @@ class LLMEngineManager:
     async def _push_migrations(self) -> None:
         # Push migrate when the instance_info have updated a certain number of times.
         if self.enable_pd_disagg:
-            asyncio.create_task(self._migrate(PairMigrationConstraints.PREFILL_2_DECODING))
-            asyncio.create_task(self._migrate(PairMigrationConstraints.DECODING_2_DECODING))
+            #asyncio.create_task(self._migrate(PairMigrationConstraints.PREFILL_2_DECODING))
+            #asyncio.create_task(self._migrate(PairMigrationConstraints.DECODING_2_DECODING))
+            await self._migrate(PairMigrationConstraints.PREFILL_2_DECODING)
+            await self._migrate(PairMigrationConstraints.DECODING_2_DECODING)
         else:
             asyncio.create_task(self._migrate(PairMigrationConstraints.NO_CONSTRAINTS))
 

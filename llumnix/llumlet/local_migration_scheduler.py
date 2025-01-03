@@ -46,9 +46,9 @@ class LocalMigrationScheduler:
         running: List[LlumnixRequest] = self.backend_engine.get_running_queue()
         required_migration_requests = []
         for request in reversed(running):
-            if request.status == RequestStatus.RUNNING \
-                and request.inference_type == RequestInferenceType.DECODE \
-                and request.output_len >= request.expected_steps:
+            if request.status == RequestStatus.RUNNING:
+                #and request.inference_type == RequestInferenceType.DECODE \
+                #and request.output_len >= request.expected_steps:
                 required_migration_requests.append(request)
         return required_migration_requests
 

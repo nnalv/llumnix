@@ -152,7 +152,7 @@ class Llumlet:
             t0 = time.time()
             migrate_in_ray_actor = ray.get_actor(dst_instance_name, namespace='llumnix')
             dst_instance_id = dst_instance_name[len("instance_"):]
-            logger.info("{}->{} begin migrate out".format(self.instance_id, dst_instance_id))
+            logger.info("{}->{} begin migrate out, requests:{}".format(self.instance_id, dst_instance_id, migrate_out_request.request_id))
             migrated_request = []
 
             if migrate_out_request.status == RequestStatus.RUNNING:
@@ -169,6 +169,9 @@ class Llumlet:
                 self.backend_engine.free_src_request(migrate_out_request)
                 self.backend_engine.remove_migrating_out_request_last_stage(migrate_out_request)
                 migrated_request.append(migrate_out_request.request_id)
+            elif status == MigrationStatus.RUNNING: # @LN: for layer-wise migration
+                logger.info("{}->{} running migrate out，migrating requests:{}, migrated blocks:{}".format(self.instance_id, dst_instance_id, migrate_out_request.request_id, sum(migrate_out_request.stage_num_blocks_list)))
+                return migrated_request
             else: # ABORTED_SRC or ABORTED_DST
                 migrate_out_request.reset_migration_args_src()
                 migrate_out_request.reset_status()
