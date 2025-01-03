@@ -25,6 +25,7 @@ from llumnix.backends.backend_interface import BackendInterface
 
 logger = init_logger(__name__)
 
+
 class MigrationStatus(enum.Enum):
     """Status of Migration."""
     RUNNING = enum.auto()
@@ -39,6 +40,7 @@ class MigrationStatus(enum.Enum):
             MigrationStatus.ABORTED_SRC,
             MigrationStatus.FINISHED
         ]
+
 
 class MigrationCoordinator:
     def __init__(self,
@@ -55,7 +57,7 @@ class MigrationCoordinator:
                                           migrate_out_request: LlumnixRequest) -> "MigrationStatus":
         try:
             return await self._migrate_out_blocks(migrate_in_ray_actor, migrate_out_request)
-            #return await self._migrate_out_multistage(migrate_in_ray_actor, migrate_out_request)
+            # return await self._migrate_out_multistage(migrate_in_ray_actor, migrate_out_request)
         except Exception as e:
             logger.error("unexpected exception occurs: {}".format(e))
             logger.error("exception traceback: {}".format(traceback.format_exc()))
@@ -72,10 +74,10 @@ class MigrationCoordinator:
                 return MigrationStatus.ABORTED_SRC
             self.backend_engine.add_migrating_out_request_last_stage(migrate_out_request)
             dst_blocks = await migrate_in_ray_actor.execute_migration_method \
-                                    .remote("migrate_in_pre_alloc", migrate_out_request.request_id,
-                                                                    migrate_out_request.status,
-                                                                    migrate_out_request.arrival_time,
-                                                                    migrate_out_request.prefill_num_blocks)
+                .remote("migrate_in_pre_alloc", migrate_out_request.request_id,
+                        migrate_out_request.status,
+                        migrate_out_request.arrival_time,
+                        migrate_out_request.prefill_num_blocks)
             if len(dst_blocks) != migrate_out_request.prefill_num_blocks:
                 self.backend_engine.add_waiting_request(migrate_out_request)
                 self.backend_engine.remove_migrating_out_request_last_stage(migrate_out_request)
@@ -91,9 +93,11 @@ class MigrationCoordinator:
                                   migrate_in_ray_actor: "ray.actor.ActorHandle",
                                   migrate_out_request: LlumnixRequest) -> "MigrationStatus":
         pre_stage_num_blocks = sum(migrate_out_request.stage_num_blocks_list)
-        logger.info(f"pre_stage_num_blocks:{pre_stage_num_blocks}, inference_type:{migrate_out_request.inference_type}")
         incremental_blocks = self.backend_engine.get_request_incremental_blocks(migrate_out_request,
                                                                                 pre_stage_num_blocks)
+        logger.info(
+            f"pre_stage_num_blocks:{pre_stage_num_blocks}, incremental_blocks:{len(incremental_blocks)}, inference_type:{migrate_out_request.inference_type}")
+
         is_complete = migrate_out_request.inference_type == RequestInferenceType.DECODE and len(incremental_blocks) == 0
         if not is_complete:
             migration_status = MigrationStatus.RUNNING
@@ -101,9 +105,9 @@ class MigrationCoordinator:
                 for src_block in incremental_blocks:
                     dst_blocks = await migrate_in_ray_actor.execute_migration_method \
                         .remote("migrate_in_pre_alloc", migrate_out_request.request_id,
-                            migrate_out_request.status,
-                            migrate_out_request.arrival_time,
-                            1)
+                                migrate_out_request.status,
+                                migrate_out_request.arrival_time,
+                                1)
                     if len(dst_blocks) != 1:
                         return MigrationStatus.ABORTED_DST
 
@@ -168,19 +172,21 @@ class MigrationCoordinator:
                 return MigrationStatus.ABORTED_SRC
 
             pre_stage_num_blocks = sum(migrate_out_request.stage_num_blocks_list)
-            incremental_blocks = self.backend_engine.get_request_incremental_blocks(migrate_out_request, pre_stage_num_blocks)
+            incremental_blocks = self.backend_engine.get_request_incremental_blocks(migrate_out_request,
+                                                                                    pre_stage_num_blocks)
             logger.info(f"incremental_blocks size:{len(incremental_blocks)}")
             # live migration, transfer all blocks except last one(currently updating)
-            is_last_stage = (len(incremental_blocks) <= self.last_stage_max_blocks) or migrate_out_request.blocking_migration
+            is_last_stage = (
+                                        len(incremental_blocks) <= self.last_stage_max_blocks) or migrate_out_request.blocking_migration
             if not is_last_stage:
                 migration_status = MigrationStatus.RUNNING
                 src_blocks = incremental_blocks[:-1]
                 stage_block_num = len(incremental_blocks) - 1
                 dst_blocks = await migrate_in_ray_actor.execute_migration_method \
-                                        .remote("migrate_in_pre_alloc", migrate_out_request.request_id,
-                                                                        migrate_out_request.status,
-                                                                        migrate_out_request.arrival_time,
-                                                                        stage_block_num)
+                    .remote("migrate_in_pre_alloc", migrate_out_request.request_id,
+                            migrate_out_request.status,
+                            migrate_out_request.arrival_time,
+                            stage_block_num)
             else:
                 # last stage migration, stop inference, transfer all blocks
                 migration_status = MigrationStatus.FINISHED
@@ -191,10 +197,10 @@ class MigrationCoordinator:
                 src_blocks = incremental_blocks[:]
                 stage_block_num = len(incremental_blocks)
                 dst_blocks = await migrate_in_ray_actor.execute_migration_method \
-                                        .remote("migrate_in_pre_alloc", migrate_out_request.request_id,
-                                                                        migrate_out_request.status,
-                                                                        migrate_out_request.arrival_time,
-                                                                        stage_block_num)
+                    .remote("migrate_in_pre_alloc", migrate_out_request.request_id,
+                            migrate_out_request.status,
+                            migrate_out_request.arrival_time,
+                            stage_block_num)
 
             if len(dst_blocks) != len(src_blocks):
                 # migrate-in instance failed to pre alloc
