@@ -143,7 +143,7 @@ class RayRpcMigrationBackend(MigrationBackendBase):
     def do_send_layers(self, dst_handle, blocks: List[int], layers: List[int]):
         num_blocks = len(blocks)
         layer_num = len(layers)
-        send_cache = self.dummy_cache[:num_blocks, :layer_num].view(layer_num, 2, num_blocks, self.migration_cache_size)
+        send_cache = self.dummy_cache[:num_blocks, :layer_num].contiguous().view(layer_num, 2, num_blocks, self.migration_cache_size)
         src_to_dst = {block_num: idx for idx, block_num in enumerate(blocks)}
         with torch.cuda.stream(self.migration_stream):
             for layer_idx in layers:
@@ -155,7 +155,7 @@ class RayRpcMigrationBackend(MigrationBackendBase):
         num_blocks = len(blocks)
         src_to_dst = dict(enumerate(blocks))
         layer_num = len(layers)
-        recv_cache = self.dummy_cache[:num_blocks, :layer_num].view(layer_num, 2, num_blocks, self.migration_cache_size)
+        recv_cache = self.dummy_cache[:num_blocks, :layer_num].contiguous().view(layer_num, 2, num_blocks, self.migration_cache_size)
         # use pin memory dummy_cache to speed up data transfer
         recv_cache.copy_(torch.from_numpy(src_handle))
 
