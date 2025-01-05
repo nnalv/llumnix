@@ -43,6 +43,8 @@ class LlumnixRequest:
         self._status = None
         self.migration_start_time = None
         self.is_migrating = False
+        self.migrate_layers = []
+        self.migrated_layer_num = 0
 
         # end-of-migration, for multiple requests migration
         self.eom = False

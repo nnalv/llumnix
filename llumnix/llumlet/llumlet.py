@@ -13,7 +13,7 @@
 
 import asyncio
 import traceback
-from typing import List, Union, Iterable
+from typing import List, Union, Iterable, Optional
 import time
 import ray
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy, NodeAffinitySchedulingStrategy
@@ -131,13 +131,15 @@ class Llumlet:
                 self_actor = ray.get_actor(self.actor_name)
                 ray.kill(self_actor)
 
-    async def migrate_out(self, dst_instance_name: str) -> List[str]:
+    async def migrate_out(self, dst_instance_name: str, migrate_layers: Optional[List]) -> List[str]:
         migrate_out_requests = self.migration_scheduler.get_migrate_out_requests()
         if len(migrate_out_requests) == 0:
             return []
 
         for migrate_out_request in migrate_out_requests:
             migrate_out_request.is_migrating = True
+            # TODO: 临时方案，for只测同时一个请求
+            migrate_out_request.migrate_layers.append(migrate_layers)
 
         migrated_request_list = []
         for migrate_out_request in migrate_out_requests:
@@ -152,7 +154,7 @@ class Llumlet:
             t0 = time.time()
             migrate_in_ray_actor = ray.get_actor(dst_instance_name, namespace='llumnix')
             dst_instance_id = dst_instance_name[len("instance_"):]
-            logger.info("{}->{} begin migrate out, requests:{}".format(self.instance_id, dst_instance_id, migrate_out_request.request_id))
+            logger.info("{}->{} begin migrate out, requests:{}, layers:{}".format(self.instance_id, dst_instance_id, migrate_out_request.request_id, migrate_out_request.migrate_layers[-1]))
             migrated_request = []
 
             if migrate_out_request.status == RequestStatus.RUNNING:
@@ -167,11 +169,11 @@ class Llumlet:
             if status == MigrationStatus.FINISHED:
                 await migrate_in_ray_actor.execute_engine_method.remote("commit_dst_request", migrate_out_request)
                 self.backend_engine.free_src_request(migrate_out_request)
-                # TODO: for block-wise migration temporarily
+                # TODO: for layer-wise migration temporarily
                 # self.backend_engine.remove_migrating_out_request_last_stage(migrate_out_request)
                 migrated_request.append(migrate_out_request.request_id)
             elif status == MigrationStatus.RUNNING: # @LN: for layer-wise migration
-                logger.info("{}->{} running migrate out，migrating requests:{}, migrated blocks:{}".format(self.instance_id, dst_instance_id, migrate_out_request.request_id, sum(migrate_out_request.stage_num_blocks_list)))
+                logger.info("{}->{} running migrate out，migrating requests:{}, migrated layers:{}, migrated layer nums:{}".format(self.instance_id, dst_instance_id, migrate_out_request.request_id, migrate_out_request.migrate_layers[-1], migrate_out_request.migrated_layer_num))
                 return migrated_request
             else: # ABORTED_SRC or ABORTED_DST
                 migrate_out_request.reset_migration_args_src()

@@ -33,6 +33,10 @@ class MigrationBackendBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def migrate_cache_by_layers(self, src_handle, src_blocks: List[int], dst_blocks: List[int], layers: List[int]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def do_send(self, dst_handle, blocks: List[int]):
         raise NotImplementedError
 

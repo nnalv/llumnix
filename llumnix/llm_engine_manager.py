@@ -35,6 +35,8 @@ from llumnix.backends.backend_interface import BackendType
 from llumnix.utils import random_uuid, clear_gloo_backend_state
 from llumnix.queue.queue_type import QueueType
 
+from multiprocessing import shared_memory
+
 logger = init_logger(__name__)
 
 MANAGER_ACTOR_NAME = 'manager'
@@ -72,6 +74,9 @@ class LLMEngineManager:
         self.pending_rebuild_migration_instances = 0
         self.global_scheduler = GlobalScheduler(global_scheduler_config)
 
+        self.layer_shm = shared_memory.SharedMemory(create=True, name='pd_layer_mq', size=1)
+        self.layer_mq = self.layer_shm.buf
+        self.consume_idx = 0
         self.polling_interval = engine_manager_args.polling_interval
         asyncio.create_task(self._update_instance_info_loop(self.polling_interval))
 
@@ -195,7 +200,7 @@ class LLMEngineManager:
                     self.scale_down(dead_instance_ids)
                 self.num_instance_info_updates += 1
                 # Push migrate when the instance_info have updated a certain number of times.
-                if self.enable_migration and self.num_instance_info_updates != 0: 
+                if self.enable_migration and self.num_instance_info_updates != 0:
                     #and self.num_instance_info_updates % self.pair_migration_frequency == 0:
                     asyncio.create_task(self._push_migrations())
                     #await self._push_migrations()
@@ -257,6 +262,16 @@ class LLMEngineManager:
             loop.create_task(migrate_done_callback(ret, migrate_instance_pair))
 
         try:
+            migration_layers = []
+            while True:
+                if self.layer_mq[self.consume_idx] == 0:
+                    break
+                else:
+                    migration_layers.append(self.layer_mq[self.consume_idx])
+                    self.consume_idx += 1
+            if len(migration_layers) == 0:
+                return
+
             migrate_instance_pairs = self.global_scheduler.pair_migration(pair_migration_type)
             migration_tasks = []
             for _, migrate_instance_pair in enumerate(migrate_instance_pairs):
@@ -267,7 +282,7 @@ class LLMEngineManager:
                 self.instance_migrating[migrate_in_instance_id] = True
                 migrate_in_instance_name = "instance_{}".format(migrate_in_instance_id)
                 # Use asyncio.gather to wrap ray remote call to add done callback.
-                task = asyncio.gather(self.instances[migrate_out_instance_id].migrate_out.remote(migrate_in_instance_name),
+                task = asyncio.gather(self.instances[migrate_out_instance_id].migrate_out.remote(migrate_in_instance_name, migration_layers),
                                       return_exceptions=True)
                 task.add_done_callback(partial(migrate_done_callback_wrapper, migrate_instance_pair))
                 migration_tasks.append(task)

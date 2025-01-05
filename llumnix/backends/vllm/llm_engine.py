@@ -381,6 +381,14 @@ class BackendVLLM(BackendInterface):
                                                          src_blocks=src_blocks,
                                                          src_worker_handle_list=self.worker_handle_list)
 
+    async def send_layers(self, dst_ray_actor: "ray.actor.ActorHandle", src_blocks: List[int], dst_blocks: List[int], layers: List[int]) -> None:
+        await dst_ray_actor.execute_engine_method.remote("_run_workers",
+                                                         "migrate_cache_by_layers",
+                                                         dst_blocks=dst_blocks,
+                                                         src_blocks=src_blocks,
+                                                         src_worker_handle_list=self.worker_handle_list,
+                                                         layers=layers)
+
     def _run_workers(self, *args, **kwargs):
         # pylint: disable=protected-access
         return self.engine.model_executor._run_workers(*args, **kwargs)

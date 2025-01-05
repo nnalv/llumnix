@@ -104,6 +104,20 @@ class RayRpcMigrationBackend(MigrationBackendBase):
             recv_blocks = dst_blocks[start_idx:start_idx+offset]
         self.do_recv(rpc_numpy_cache, recv_blocks)
 
+    def migrate_cache_by_layers(self, src_handle, src_blocks: List[int], dst_blocks: List[int], layers: List[int]) -> None:
+        tot_blocks = len(src_blocks)
+        rpc_numpy_cache = None
+        # TODO: self.num_migration_buffer_blocks默认512，鉴于模型最大8192，block最多为8192/16=512，先临时这样用
+        for start_idx in range(0, tot_blocks, self.num_migration_buffer_blocks):
+            offset = min(self.num_migration_buffer_blocks, tot_blocks - start_idx)
+            send_blocks = src_blocks[start_idx:start_idx+offset]
+            ray_obj = self.actor.exec_method.remote(self.is_driver_worker, src_handle, "do_send_layers", None, send_blocks, layers)
+            if rpc_numpy_cache is not None:
+                self.do_recv_layers(rpc_numpy_cache, recv_blocks, layers)
+            rpc_numpy_cache = ray.get(ray_obj)
+            recv_blocks = dst_blocks[start_idx:start_idx+offset]
+        self.do_recv_layers(rpc_numpy_cache, recv_blocks, layers)
+
     def do_send(self, dst_handle, blocks: List[int]):
         num_blocks = len(blocks)
         send_cache = self.dummy_cache[:num_blocks].view(self.num_layers, 2, num_blocks, self.migration_cache_size)
@@ -123,6 +137,30 @@ class RayRpcMigrationBackend(MigrationBackendBase):
 
         with torch.cuda.stream(self.migration_stream):
             for layer_idx in range(self.num_layers):
+                self.cache_engine.attn_backend.swap_blocks(recv_cache[layer_idx], self.gpu_cache[layer_idx], src_to_dst)
+        torch.cuda.Stream.synchronize(self.migration_stream)
+
+    def do_send_layers(self, dst_handle, blocks: List[int], layers: List[int]):
+        num_blocks = len(blocks)
+        layer_num = len(layers)
+        send_cache = self.dummy_cache[:num_blocks, layer_num].view(layer_num, 2, num_blocks, self.migration_cache_size)
+        src_to_dst = {block_num: idx for idx, block_num in enumerate(blocks)}
+        with torch.cuda.stream(self.migration_stream):
+            for layer_idx in layers:
+                self.cache_engine.attn_backend.swap_blocks(self.gpu_cache[layer_idx], send_cache[layer_idx], src_to_dst)
+        torch.cuda.Stream.synchronize(self.migration_stream)
+        return send_cache.to(self.rpc_dtype).numpy()
+
+    def do_recv_layers(self, src_handle, blocks: List[int], layers: List[int]):
+        num_blocks = len(blocks)
+        src_to_dst = dict(enumerate(blocks))
+        layer_num = len(layers)
+        recv_cache = self.dummy_cache[:num_blocks, layer_num].view(layer_num, 2, num_blocks, self.migration_cache_size)
+        # use pin memory dummy_cache to speed up data transfer
+        recv_cache.copy_(torch.from_numpy(src_handle))
+
+        with torch.cuda.stream(self.migration_stream):
+            for layer_idx in layers:
                 self.cache_engine.attn_backend.swap_blocks(recv_cache[layer_idx], self.gpu_cache[layer_idx], src_to_dst)
         torch.cuda.Stream.synchronize(self.migration_stream)
 

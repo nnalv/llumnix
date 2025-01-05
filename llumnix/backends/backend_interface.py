@@ -296,6 +296,10 @@ class BackendInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def send_layers(self, dst_ray_actor: "ray.actor.ActorHandle", src_blocks: List[int], dst_blocks: List[int], layers: List[int]):
+        raise NotImplementedError
+
+    @abstractmethod
     def commit_dst_request(self, backend_request: LlumnixRequest) -> None:
         """Commits the migrating request to the destination instance.
 
