@@ -144,10 +144,10 @@ class MigrationWorker(Worker):
         return self.migration_backend.do_send(*args, **kwargs)
 
     def do_recv_layers(self, *args, **kwargs):
-        return self.migration_backend.do_recv(*args, **kwargs)
+        return self.migration_backend.do_recv_layers(*args, **kwargs)
 
     def do_send_layers(self, *args, **kwargs):
-        return self.migration_backend.do_send(*args, **kwargs)
+        return self.migration_backend.do_send_layers(*args, **kwargs)
 
     def rebuild_migration_backend(self, instance_rank: Dict[str, int], group_name: str) -> bool:
         self.migration_backend.destory_backend()

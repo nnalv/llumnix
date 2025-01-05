@@ -43,3 +43,11 @@ class MigrationBackendBase(ABC):
     @abstractmethod
     def do_recv(self, src_handle, blocks: List[int]):
         raise NotImplementedError
+
+    @abstractmethod
+    def do_send_layers(self, dst_handle, blocks: List[int], layers: List[int]):
+        raise NotImplementedError
+
+    @abstractmethod
+    def do_recv_layers(self, src_handle, blocks: List[int], layers: List[int]):
+        raise NotImplementedError
