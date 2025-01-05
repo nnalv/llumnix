@@ -146,8 +146,8 @@ class RayRpcMigrationBackend(MigrationBackendBase):
         send_cache = self.dummy_cache[:num_blocks, :layer_num].contiguous().view(layer_num, 2, num_blocks, self.migration_cache_size)
         src_to_dst = {block_num: idx for idx, block_num in enumerate(blocks)}
         with torch.cuda.stream(self.migration_stream):
-            for layer_idx in layers:
-                self.cache_engine.attn_backend.swap_blocks(self.gpu_cache[layer_idx], send_cache[layer_idx], src_to_dst)
+            for i, layer_idx in enumerate(layers):
+                self.cache_engine.attn_backend.swap_blocks(self.gpu_cache[layer_idx], send_cache[i], src_to_dst)
         torch.cuda.Stream.synchronize(self.migration_stream)
         return send_cache.to(self.rpc_dtype).numpy()
 
@@ -160,8 +160,8 @@ class RayRpcMigrationBackend(MigrationBackendBase):
         recv_cache.copy_(torch.from_numpy(src_handle))
 
         with torch.cuda.stream(self.migration_stream):
-            for layer_idx in layers:
-                self.cache_engine.attn_backend.swap_blocks(recv_cache[layer_idx], self.gpu_cache[layer_idx], src_to_dst)
+            for i, layer_idx in enumerate(layers):
+                self.cache_engine.attn_backend.swap_blocks(recv_cache[i], self.gpu_cache[layer_idx], src_to_dst)
         torch.cuda.Stream.synchronize(self.migration_stream)
 
 def try_import_gloo():
