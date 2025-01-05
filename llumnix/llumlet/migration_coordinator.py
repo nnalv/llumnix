@@ -50,7 +50,6 @@ class MigrationCoordinator:
         self.last_stage_max_blocks = last_stage_max_blocks
         self.max_stages = max_stages
         self.backend_engine = backend_engine
-        self.migrate_fine_grained = os.environ['MIGRATE_FINE_GRAINED']
 
     async def migrate_out_running_request(self,
                                           migrate_in_ray_actor: "ray.actor.ActorHandle",

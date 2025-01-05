@@ -74,7 +74,7 @@ class LLMEngineManager:
         self.pending_rebuild_migration_instances = 0
         self.global_scheduler = GlobalScheduler(global_scheduler_config)
 
-        self.layer_shm = shared_memory.SharedMemory(create=True, name='pd_layer_mq', size=1)
+        self.layer_shm = shared_memory.SharedMemory(create=True, name='pd_layer_mq', size=10000)
         self.layer_mq = self.layer_shm.buf
         self.consume_idx = 0
         self.polling_interval = engine_manager_args.polling_interval
