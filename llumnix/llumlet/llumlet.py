@@ -136,6 +136,9 @@ class Llumlet:
         if len(migrate_out_requests) == 0:
             return []
 
+        if len(migrate_layers) == 0:
+            return []
+
         for migrate_out_request in migrate_out_requests:
             migrate_out_request.is_migrating = True
             # TODO: 临时方案，for只测同时一个请求
