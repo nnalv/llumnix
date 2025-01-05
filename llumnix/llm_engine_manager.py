@@ -267,7 +267,7 @@ class LLMEngineManager:
                 if self.layer_mq[self.consume_idx] == 0:
                     break
                 else:
-                    migration_layers.append(self.layer_mq[self.consume_idx])
+                    migration_layers.append(self.layer_mq[self.consume_idx]-1)
                     self.consume_idx += 1
 
             migrate_instance_pairs = self.global_scheduler.pair_migration(pair_migration_type)
