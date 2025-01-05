@@ -121,10 +121,32 @@ class MigrationWorker(Worker):
         logger.info("[migrate_cache] blocks_num: {}, total_kv_cache_size: {}, time: {}s, speed: {}GB/s."
                     .format(len(src_blocks), convert_bytes(total_kv_cache_size), end_time-start_time, speed))
 
+    def migrate_cache_by_layers(self, src_worker_handle_list, src_blocks: List[int], dst_blocks: List[int], layers: List[int]) -> None:
+        src_worker_handle = src_worker_handle_list[self.rank]
+
+        start_time = time.time()
+        try:
+            self.migration_backend.migrate_cache_by_layers(src_worker_handle, src_blocks, dst_blocks, layers)
+        except ray.exceptions.RayActorError:
+            logger.info("[migrate_cache] self.rank: {}, src_worker_handle {} is dead".format(self.rank, src_worker_handle))
+        end_time = time.time()
+
+        total_kv_cache_size = len(src_blocks) * CacheEngine.get_cache_block_size(
+            self.cache_config, self.model_config, self.parallel_config) * len(layers) / 32
+        speed = total_kv_cache_size/_GB/(end_time - start_time)
+        logger.info("[migrate_cache] blocks_num: {}, total_kv_cache_size: {}, time: {}s, speed: {}GB/s."
+                    .format(len(src_blocks), convert_bytes(total_kv_cache_size), end_time-start_time, speed))
+
     def do_recv(self, *args, **kwargs):
         return self.migration_backend.do_recv(*args, **kwargs)
 
     def do_send(self, *args, **kwargs):
+        return self.migration_backend.do_send(*args, **kwargs)
+
+    def do_recv_layers(self, *args, **kwargs):
+        return self.migration_backend.do_recv(*args, **kwargs)
+
+    def do_send_layers(self, *args, **kwargs):
         return self.migration_backend.do_send(*args, **kwargs)
 
     def rebuild_migration_backend(self, instance_rank: Dict[str, int], group_name: str) -> bool:
