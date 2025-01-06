@@ -263,12 +263,13 @@ class LLMEngineManager:
 
         try:
             migration_layers = []
+            idx = self.consume_idx
             while True:
-                if self.layer_mq[self.consume_idx] == 0:
+                if self.layer_mq[idx] == 0:
                     break
                 else:
-                    migration_layers.append(self.layer_mq[self.consume_idx]-1)
-                    self.consume_idx += 1
+                    migration_layers.append(self.layer_mq[idx]-1)
+                    idx += 1
             if len(migration_layers) > 0:
                 logger.info(f"[consume migrate layers:{migration_layers}, current pos:{self.consume_idx}]")
             migrate_instance_pairs = self.global_scheduler.pair_migration(pair_migration_type)
@@ -276,7 +277,9 @@ class LLMEngineManager:
             for _, migrate_instance_pair in enumerate(migrate_instance_pairs):
                 migrate_out_instance_id, migrate_in_instance_id = migrate_instance_pair
                 if self.instance_migrating[migrate_out_instance_id] or self.instance_migrating[migrate_in_instance_id]:
+                    logger.info(f"[unfinish last migration, to do reconsume, current pos:{self.consume_idx}]")
                     continue
+                self.consume_idx = idx
                 self.instance_migrating[migrate_out_instance_id] = True
                 self.instance_migrating[migrate_in_instance_id] = True
                 migrate_in_instance_name = "instance_{}".format(migrate_in_instance_id)
