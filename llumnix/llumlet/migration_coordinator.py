@@ -94,10 +94,11 @@ class MigrationCoordinator:
 
         migrate_blocks = self.backend_engine.get_request_incremental_blocks(migrate_out_request, 0)
         migrating_layers = migrate_out_request.migrate_layers[-1]
-        logger.info(f"migrate_layers:{migrating_layers}")
-        is_complete = migrate_out_request.migrated_layer_num == 32
 
-        if not is_complete:
+        if len(migrating_layers) == 0:
+            logger.info(f"terminate migration: no migrate_layers")
+            return MigrationStatus.RUNNING
+        else:
             migration_status = MigrationStatus.RUNNING
             src_blocks_size = len(migrate_blocks)
             dst_blocks = await migrate_in_ray_actor.execute_migration_method \
@@ -112,15 +113,17 @@ class MigrationCoordinator:
             migrate_out_request.stage_timestamps.append(time.time())
             await self.backend_engine.send_layers(migrate_in_ray_actor, migrate_blocks, dst_blocks, migrating_layers)
             migrate_out_request.migrated_layer_num += len(migrating_layers)
-        else:
-            migration_status = MigrationStatus.FINISHED
-            found = self.backend_engine.remove_running_request(migrate_out_request.request_id)
-            if not found:
-                return MigrationStatus.ABORTED_SRC
 
-        if not is_complete and migrate_out_request.should_abort_migration():
-            # migrate-out request abort by scheduler during send/recv
-            return MigrationStatus.ABORTED_SRC
+            is_complete = migrate_out_request.migrated_layer_num == 32
+            if is_complete:
+                migration_status = MigrationStatus.FINISHED
+                found = self.backend_engine.remove_running_request(migrate_out_request.request_id)
+                if not found:
+                    return MigrationStatus.ABORTED_SRC
+
+            if not is_complete and migrate_out_request.should_abort_migration():
+                # migrate-out request abort by scheduler during send/recv
+                return MigrationStatus.ABORTED_SRC
 
         return migration_status
 
