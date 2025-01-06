@@ -269,7 +269,8 @@ class LLMEngineManager:
                 else:
                     migration_layers.append(self.layer_mq[self.consume_idx]-1)
                     self.consume_idx += 1
-            logger.info(f"[consume migrate layers:{migration_layers}, current pos:{self.consume_idx}]")
+            if len(migration_layers) > 0:
+                logger.info(f"[consume migrate layers:{migration_layers}, current pos:{self.consume_idx}]")
             migrate_instance_pairs = self.global_scheduler.pair_migration(pair_migration_type)
             migration_tasks = []
             for _, migrate_instance_pair in enumerate(migrate_instance_pairs):
