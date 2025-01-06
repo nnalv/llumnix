@@ -275,7 +275,7 @@ class LLMEngineManager:
             migrate_instance_pairs = self.global_scheduler.pair_migration(pair_migration_type)
             migration_tasks = []
 
-            if len(migrate_instance_pairs) == 0 and len(self.instances) >=2:
+            if len(migrate_instance_pairs) == 0 and len(self.instances) >=2 and len(migration_layers) > 0:
                 self.consume_idx = idx
                 migration_layers = []
                 logger.info(f"no migration instances, to do reconsume, current pos:{self.consume_idx}]")
