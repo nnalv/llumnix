@@ -277,8 +277,9 @@ class LLMEngineManager:
             for _, migrate_instance_pair in enumerate(migrate_instance_pairs):
                 migrate_out_instance_id, migrate_in_instance_id = migrate_instance_pair
                 if self.instance_migrating[migrate_out_instance_id] or self.instance_migrating[migrate_in_instance_id]:
-                    logger.info(f"[unfinish last migration, to do reconsume, current pos:{self.consume_idx}]")
+                    logger.info(f"{migrate_out_instance_id}->{migrate_in_instance_id}, unfinish last migration, to do reconsume, current pos:{self.consume_idx}]")
                     self.consume_idx = idx
+                    migration_layers = []
                     continue
                 self.instance_migrating[migrate_out_instance_id] = True
                 self.instance_migrating[migrate_in_instance_id] = True
