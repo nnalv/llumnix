@@ -274,12 +274,18 @@ class LLMEngineManager:
                 logger.info(f"[consume migrate layers:{migration_layers}, current pos:{self.consume_idx}]")
             migrate_instance_pairs = self.global_scheduler.pair_migration(pair_migration_type)
             migration_tasks = []
+
+            if len(migrate_instance_pairs) == 0:
+                self.consume_idx = idx
+                migration_layers = []
+                logger.info(f"no migration instances, to do reconsume, current pos:{self.consume_idx}]")
+
             for _, migrate_instance_pair in enumerate(migrate_instance_pairs):
                 migrate_out_instance_id, migrate_in_instance_id = migrate_instance_pair
                 if self.instance_migrating[migrate_out_instance_id] or self.instance_migrating[migrate_in_instance_id]:
-                    logger.info(f"{migrate_out_instance_id}->{migrate_in_instance_id}, unfinish last migration, to do reconsume, current pos:{self.consume_idx}]")
                     self.consume_idx = idx
                     migration_layers = []
+                    logger.info(f"{migrate_out_instance_id}->{migrate_in_instance_id}, unfinish last migration, to do reconsume, current pos:{self.consume_idx}]")
                     continue
                 self.instance_migrating[migrate_out_instance_id] = True
                 self.instance_migrating[migrate_in_instance_id] = True
